@@ -27,7 +27,17 @@ export const login = async (req: Request, res: Response) => {
 
 
     } catch(err) {
-        return res.status(401).json({ message: 'Invalid Credentials', error: err });
+        // Log the FULL error server-side. A pg connection/internal error (code XX000,
+        // severity FATAL) is NOT a bad-password case — but JSON.stringify drops the
+        // Error's non-enumerable .message, so it must be logged here to be seen.
+        console.error('[auth.login] error:', err);
+        const e = err as any;
+        const isCredentialError = e instanceof Error && e.message === 'Invalid Credentials';
+        if (isCredentialError) {
+            return res.status(401).json({ message: 'Invalid Credentials' });
+        }
+        // A real failure (DB down, schema, etc.) — surface it as 500 with the message.
+        return res.status(500).json({ message: 'Login failed', error: e?.message ?? String(e) });
     }
 };
 

@@ -40,11 +40,13 @@ const PORT = env.PORT || 4000;
         // try/catch so a Pub/Sub failure doesn't prevent server startup.
         // If this fails, cache invalidation falls back to TTL expiry only.
         //
-        try {
-            await initCacheInvalidation();
-        } catch (err) {
+        // Pub/Sub is optional. Do NOT await it: subscriber.subscribe() never resolves
+        // while Redis is unreachable (retryStrategy never gives up), which would block
+        // app.listen() forever. Fire-and-forget so the server always starts; the
+        // subscriber connects on its own if/when Redis becomes available.
+        initCacheInvalidation().catch(() => {
             console.warn('Cache invalidation Pub/Sub unavailable. Relying on TTL expiry.');
-        }
+        });
 
         app.listen(Number(PORT), () => console.log(`🚀 Server running on port ${PORT}`));
     } catch (error) {

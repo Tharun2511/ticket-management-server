@@ -59,6 +59,19 @@ const redis = new Redis(env.REDIS_URL, {
     // when you have a fallback.
     maxRetriesPerRequest: 3,
 
+    // ─── enableOfflineQueue ──────────────────────────────────────────
+    // When Redis is unreachable, ioredis by default QUEUES commands and waits
+    // for reconnection — so every cache read/write STALLS for seconds before it
+    // eventually rejects. That silently turns "Redis is down" into "every request
+    // is slow" (login could exceed 12s, and startup permission-cache writes stall).
+    //
+    // We have a PostgreSQL fallback behind every cache call, so we want the cache
+    // to FAIL FAST when Redis is down, not block. Setting this to false makes
+    // commands reject immediately while disconnected → the try/catch fallbacks
+    // hit Postgres instantly. This is the same "fast failure" principle as
+    // maxRetriesPerRequest above. When Redis is up, this has no effect.
+    enableOfflineQueue: false,
+
     // ─── retryStrategy ───────────────────────────────────────────────
     // This is DIFFERENT from maxRetriesPerRequest!
     //
